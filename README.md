@@ -7,7 +7,7 @@ This repo contains research notes, resources, and code related to the 2024 _reda
 ## Getting Started
 Research Notes: start with [deepRacerResearch.ipynb](deepRacerResearch.ipynb)
 
-In order for the python notebooks to execute I would setup a virtual environment 
+To get the python notebooks to execute I would setup a virtual environment 
 and install the requirements with pip in the virtual environment
 
 ```bash
@@ -16,7 +16,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Personally I use vsCode for all of my python development needs.
+Personally I use [vsCode](https://code.visualstudio.com/) for all of my python development needs.
 
 
 ## Deployment
