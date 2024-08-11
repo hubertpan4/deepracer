@@ -4,7 +4,7 @@
 # import scipy
 # import shapely
 
-update_interval = 2/15
+update_interval = 1/15
 
 def reward_function(params):
     return center_line_reward(params)
@@ -25,11 +25,12 @@ def attempt_race_line(params):
             - [ ] running off the road before the next control update (heavily)
             - [?] rolling over (heavily)
                 - need to check if this is monitored by "is_crashed"
+            - [ ] skidding
         - reward:
             - low amount of steer
                 - should this be relative to current road curvature?
             - [x] speed
-            -
+            - [ ] movement in direction of goal.
     """
     allWheelsOnTrack:bool = params["all_wheels_on_track"]
     isOffTrack:bool = params["is_offtrack"]
@@ -50,10 +51,29 @@ def will_car_run_off_road_before_next_update(params:map):
     speed:float = params["speed"] # 0.0 to 5.0 m/s
     heading:float = params["heading"] # -180 to 180 degrees relative to x axis of the coordinate system. may need to convert this to relative to the road.
     steering_angle:float = params["steering_angle"] # (right)-30 to 30 (left) relative to the car
+    closest_waypoints = params["closest_waypoints"]
+    waypoints = params["waypoints"]
+    # generate future route for bounds checking
+    upcoming = spliceWithLoop(waypoints, closest_waypoints[0], closest_waypoints[0] + 5)
     # calculated vals
     distance_traveled:float = speed * update_interval # m/s * s = m
-    corrected_heading
+    corrected_heading = steering_angle + heading
 
+    
+def spliceWithLoop(array: list, start: int, stop: int) -> list:
+    arrayLen = len(array)
+    if (start < arrayLen and stop < arrayLen):
+        return array[start:stop]
+    if (start < arrayLen and stop == arrayLen):
+        return array[start:stop]
+    if (start < arrayLen and stop > arrayLen):
+        result = array[start:]
+        stop = stop-arrayLen
+        while stop > arrayLen:
+            result = result + array
+            stop = stop - arrayLen
+        result = result + array[:stop]
+        return result 
 
 def center_line_reward(params):
     '''
