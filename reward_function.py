@@ -1,25 +1,25 @@
 import math
-# import random
-# import numpy
-# import scipy
+import random
+import numpy
+import scipy
 from shapely.geometry import LineString
 
 update_interval = 1/15
 
 def reward_function(params):
-    return center_line_reward(params)
+    return attempt_race_line_reward(params)
 
-def attempt_race_line(params):
+def attempt_race_line_reward(params):
     """
-    the goal of this reward function is to regenerate the racing line.
+    the goal of this reward function is to regenerate the racing line on the fly.
     As quoted from https://en.wikipedia.org/wiki/Racing_line, the racing line
     is the optimal path around the race course
     Such a path is characterized by:
         - using the full width of the road
         - taking corners from the outside in
         - minimizing turning (relative to the curvature of the path)
-            - this allows for you to maintain velocity through manuevers
-    In order ot achieve this, we need to:
+            - this allows for the driver to maintain velocity through manuevers
+    In order to achieve this, we need to:
         - penalize:
             - [x] running off of the road (heavily)
             - [ ] running off the road before the next control update (heavily)
@@ -36,15 +36,14 @@ def attempt_race_line(params):
     isOffTrack:bool = params["is_offtrack"]
     is_crashed:bool = params["is_crashed"]
     if(not allWheelsOnTrack or isOffTrack or is_crashed):
-        return -1000
+        return 1e-3
     elif will_car_run_off_road_before_next_update(params):
-        return -1000
+        return 1e-3
     else:
         reward:float = 0.0
         speed:float = params["speed"] # 0.0 to 5.0 m/s
-        heading:float = params["heading"] # -180 to 180 degrees relative to x axis of the coordinate system. may need to convert this to relative to the road.
-        steering_angle:float = params["steering_angle"] # (right)-30 to 30 (left) relative to the car
         reward = reward + speed/5.0
+        return reward 
 
 
 def will_car_run_off_road_before_next_update(params:map) -> bool:
@@ -73,12 +72,13 @@ def will_car_run_off_road_before_next_update(params:map) -> bool:
     num_waypoints = len(params["waypoints"])
     inter_waypoint_distance = track_length/num_waypoints
     forward_waypoint_count = math.ceil(distance_traveled/inter_waypoint_distance)
-    forwardRange = forward_waypoint_count * (-1 if params["is_reversed"] else 1)
+    forwardRange = min(forward_waypoint_count + 1, 2)
+    #min(forward_waypoint_count * (-1 if params["is_reversed"] else 1), 2)
     upcomingWayPoints = spliceWithLoop(waypoints, closest_waypoints[0], closest_waypoints[0] + forwardRange)
     upcomingCenterLine = LineString(upcomingWayPoints)
     track_width = params["track_width"]
-    upcomingWayPointsLeft = upcomingCenterLine.offset_curve(0.5 * track_width)
-    upcomingWayPointsRight = upcomingCenterLine.offset_curve(-0.5 * track_width)
+    upcomingWayPointsLeft = upcomingCenterLine.parallel_offset(0.5 * track_width, "left")
+    upcomingWayPointsRight = upcomingCenterLine.parallel_offset(0.5 * track_width, "right")
     return predicted_car_path.intersects(upcomingWayPointsLeft) or predicted_car_path.intersects(upcomingWayPointsRight)
     
 
@@ -88,9 +88,32 @@ def is_car_going_wide_on_turn(params:map):
     # raw inputs
     # generate future route for curvature checking
     # if curvature is high enough reward for going wide.
+    # otherwise return 0
+    closest_waypoints = params["closest_waypoints"]
+    waypoints = params["waypoints"]
+
     return 0
 
-    
+def get_car_projected_path(params:map) -> LineString:
+    speed:float = params["speed"] # 0.0 to 5.0 m/s
+    heading:float = params["heading"] # -180 to 180 degrees relative to x axis of the coordinate system. may need to convert this to relative to the road.
+    steering_angle:float = params["steering_angle"] # (right)-30 to 30 (left) relative to the car
+    # generate car's expected future path
+    distance_traveled:float = speed * update_interval # m/s * s = m
+    corrected_heading = steering_angle + heading
+    slope = math.tan(corrected_heading*(math.pi/180))
+    scale = math.sqrt(math.pow(distance_traveled, 2)/(1 + math.pow(slope, 2)))
+    delta_x = scale
+    delta_y = slope * scale
+    if abs(heading) > 90:
+        delta_x = -1 * delta_x
+    if heading < 0:
+        delta_y = -1 * delta_y
+    car_location = (params['x'], params['y'])
+    predicted_car_location = (params['x'] + delta_x, params['y'] + delta_y)
+    predicted_car_path = LineString([car_location, predicted_car_location])
+    return predicted_car_path
+
 def spliceWithLoop(array: list, start: int, stop: int) -> list:
     arrayLen = len(array)
     if (start < arrayLen and stop < arrayLen):
