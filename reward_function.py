@@ -63,11 +63,19 @@ def attempt_race_line_reward(params):
         return 1e-3
     else:
         reward:float = 0.0
-        speed:float = params["speed"] # 0.0 to 5.0 m/s
-        reward = reward + speed/5.0
+        speedReward: float = reward_speed(params)
+        reward = reward + speedReward
+        reward = reward + location_reward(params)
         return reward 
 
-
+def location_reward(params:map) -> float:
+    reward:float = 0.0
+    return reward 
+def reward_speed(params:map) -> float:
+    reward:float = 0.0
+    speed:float = params["speed"] # 0.0 to 5.0 m/s
+    reward = reward + speed/5.0
+    return reward 
 def will_car_run_off_road_before_next_update(params:map) -> bool:
     # raw inputs
     closest_waypoints = params["closest_waypoints"]
@@ -78,8 +86,16 @@ def will_car_run_off_road_before_next_update(params:map) -> bool:
     forwardRange = get_expected_future_waypoint_advancement(params)
     upcomingWayPointsLeft, upcomingCenterLine, upcomingWayPointsRight = get_track_section(params, forwardRange)
     return predicted_car_path.intersects(upcomingWayPointsLeft) or predicted_car_path.intersects(upcomingWayPointsRight)
-    
-
+def reward_speed_depending_on_upcoming(params: map) -> float:
+    speed:float = params["speed"] # 0.0 to 5.0 m/s
+    heading:float = params["heading"] # -180 to 180 degrees relative to x axis of the coordinate system. may need to convert this to relative to the road.
+    steering_angle:float = params["steering_angle"] # (right)-30 to 30 (left) relative to the car
+    # generate future route
+    predicted_car_path = get_projected_car_path(params, 1)
+    upcomingTrack = get_expected_future_waypoint_advancement(params, 1)
+    upcomingWayPointsLeft, upcomingCenterLine, upcomingWayPointsRight = get_track_section(params, upcomingTrack)
+    predicted_car_path.intersection
+    upcomingCenterLine
 def log_route_info(params:map):
     if params['progress'] < 0.01:
         print(f"params:{params}")
@@ -98,12 +114,12 @@ def is_car_going_wide_on_turn(params:map):
     closest_waypoints = params["closest_waypoints"]
     waypoints = params["waypoints"]
     return 0
-def get_expected_future_waypoint_advancement(params:map) -> int:
+def get_expected_future_waypoint_advancement(params:map, time_delta:float = update_interval) -> int:
     speed:float = params["speed"] # 0.0 to 5.0 m/s
     track_length:float = params["track_length"] # m
     num_waypoints = len(params["waypoints"])
     inter_waypoint_distance = track_length/num_waypoints
-    distance_traveled:float = speed * update_interval # m/s * s = m
+    distance_traveled:float = speed * time_delta # m/s * s = m
     forward_waypoint_count = math.ceil(distance_traveled/inter_waypoint_distance)
     forwardRange = min(forward_waypoint_count + 1, 2)
     #min(forward_waypoint_count * (-1 if params["is_reversed"] else 1), 2)
@@ -117,14 +133,14 @@ def get_track_section(params:map, forward_range: int, reverse_range: int = 0) ->
     upcomingWayPointsLeft = upcomingCenterLine.parallel_offset(0.5 * track_width, "left")
     upcomingWayPointsRight = upcomingCenterLine.parallel_offset(0.5 * track_width, "right")
     return (upcomingWayPointsLeft, upcomingCenterLine, upcomingWayPointsRight)
-def get_projected_car_path(params:map) -> LineString:
+def get_projected_car_path(params:map, time_delta:float = update_interval) -> LineString:
     speed:float = params["speed"] # 0.0 to 5.0 m/s
     heading:float = params["heading"] # -180 to 180 degrees relative to x axis of the coordinate system. may need to convert this to relative to the road.
     steering_angle:float = params["steering_angle"] # (right)-30 to 30 (left) relative to the car
     x = params['x']
     y = params['y']
     # generate car's expected future path
-    distance_traveled:float = speed * update_interval # m/s * s = m
+    distance_traveled:float = speed * time_delta # m/s * s = m
     corrected_heading = steering_angle + heading
     slope = math.tan(corrected_heading*(math.pi/180))
     scale = math.sqrt(math.pow(distance_traveled, 2)/(1 + math.pow(slope, 2)))
@@ -160,7 +176,6 @@ def center_line_reward(params):
     '''
     Example of rewarding the agent to follow center line
     '''
-    
     # Read input parameters
     track_width = params['track_width']
     distance_from_center = params['distance_from_center']

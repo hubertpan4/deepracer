@@ -1,1 +1,4 @@
 .venv/**
+deepracer/**
+deepracerlogs/**
+__pycache__/**

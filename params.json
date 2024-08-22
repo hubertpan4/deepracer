@@ -1,0 +1,26 @@
+{
+    "all_wheels_on_track": true,        
+    "x": 3.0,                            
+    "y": 3.0,                            
+    "closest_objects": [3, 4],         
+    "closest_waypoints": [0, 1],       
+    "distance_from_center": 0.1,         
+    "is_crashed": false,                 
+    "is_left_of_center": true,          
+    "is_offtrack": false,                
+    "is_reversed": false,                
+    "heading": 0.1,                      
+    "objects_distance": [0.3, 0.1],         
+    "objects_heading": [0.1, 0.2],          
+    "objects_left_of_center": [true, false], 
+    "objects_location": [], 
+    "objects_speed": [3.0, 5.0],            
+    "progress": 0.1,                     
+    "speed": 0.1,                        
+    "steering_angle": 0,               
+    "steps": 0,                          
+    "track_length": 3,                 
+    "track_width": 0.1,                  
+    "waypoints": [[0,0], [0,2] ]        
+
+}
