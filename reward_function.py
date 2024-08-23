@@ -2,7 +2,9 @@ import math
 import random
 import numpy
 import scipy
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
+from shapely.ops import nearest_points
+import shapely
 
 update_interval = 1/15
 
@@ -90,12 +92,28 @@ def reward_speed_depending_on_upcoming(params: map) -> float:
     speed:float = params["speed"] # 0.0 to 5.0 m/s
     heading:float = params["heading"] # -180 to 180 degrees relative to x axis of the coordinate system. may need to convert this to relative to the road.
     steering_angle:float = params["steering_angle"] # (right)-30 to 30 (left) relative to the car
+    x = params['x']
+    y = params['y']
+    cutOffSpeed = 200.0
     # generate future route
-    predicted_car_path = get_projected_car_path(params, 1)
-    upcomingTrack = get_expected_future_waypoint_advancement(params, 1)
+    secondsToLookForward:float = 1.0
+    predicted_car_path = get_projected_car_path(params, secondsToLookForward)
+    upcomingTrack = get_expected_future_waypoint_advancement(params, secondsToLookForward)
     upcomingWayPointsLeft, upcomingCenterLine, upcomingWayPointsRight = get_track_section(params, upcomingTrack)
-    predicted_car_path.intersection
-    upcomingCenterLine
+    rightIntersects = predicted_car_path.intersection(upcomingWayPointsRight)
+    if len(rightIntersects.geoms) > 0:
+        nearest = list(nearest_points(rightIntersects, Point(x, y)))[0]
+        dist = nearest.distance(Point(x,y))
+        cutOffSpeed = min(cutOffSpeed, dist/secondsToLookForward)
+    leftIntersects = predicted_car_path.intersection(upcomingWayPointsLeft)
+    if len(leftIntersects.geoms) > 0:
+        nearest = list(nearest_points(leftIntersects, Point(x,y)))[0]
+        dist = nearest.distance(Point(x,y))
+        cutOffSpeed = min(cutOffSpeed, dist/secondsToLookForward)
+    if speed < cutOffSpeed:
+        return speed/5.0
+    else:
+        return 1e-3
 def log_route_info(params:map):
     if params['progress'] < 0.01:
         print(f"params:{params}")
