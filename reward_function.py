@@ -59,17 +59,40 @@ def attempt_race_line_reward(params):
     is_crashed:bool = params["is_crashed"]
     if(not allWheelsOnTrack or isOffTrack or is_crashed):
         # print(f"Car crashed or ran off track")
-        return 1e-3
+        return -10*1.1
     elif will_car_run_off_road_before_next_update(params):
         # print(f"Car is projected to run off track")
-        return 1e-3
+        return -1.1
     else:
         reward:float = 0.0
-        speedReward: float = reward_speed(params)
-        reward = reward + speedReward
+        reward = reward + orientation_reward(params)
+        reward = reward + reward_speed_depending_on_upcoming(params)/10
         reward = reward + location_reward(params)
         return reward 
-
+def orientation_reward(params:map) -> float:
+    """
+    returns a higher score the closer the car is aligned with the track
+    """
+    score = 0.0
+    delta = 2 * update_interval
+    predicted_car_path = get_projected_car_path(params, delta)
+    upcomingCount = get_expected_future_waypoint_advancement(params, delta)
+    upcomingWayPointsLeft, upcomingCenterLine, upcomingWayPointsRight = get_track_section(params, upcomingCount)
+    # score = dot product of predicted_car_path unit vector and upcomingCenterLine unit vector
+    score = dot_product(get_vector(predicted_car_path), get_vector(upcomingCenterLine))
+    return score 
+def dot_product(vectorA: tuple, vectorB: tuple):
+    return vectorA[0]*vectorB[0] + vectorA[1] * vectorB[1]
+def get_vector(path: LineString, toUnit: bool= True):
+    start = getPointListFromLineString(path)[0]
+    stop = getPointListFromLineString(path)[-1]
+    vectorX = stop[0] - start[0]
+    vectorY = stop[1] - start[1]
+    if toUnit:
+        dist = math.sqrt(vectorX**2 + vectorY**2)
+        vectorX = vectorX / dist 
+        vectorY = vectorY / dist 
+    return (vectorX, vectorY)
 def location_reward(params:map) -> float:
     reward:float = 0.0
     return reward 
@@ -101,12 +124,12 @@ def reward_speed_depending_on_upcoming(params: map) -> float:
     upcomingTrack = get_expected_future_waypoint_advancement(params, secondsToLookForward)
     upcomingWayPointsLeft, upcomingCenterLine, upcomingWayPointsRight = get_track_section(params, upcomingTrack)
     rightIntersects = predicted_car_path.intersection(upcomingWayPointsRight)
-    if len(rightIntersects.geoms) > 0:
+    if len(getPointListFromLineString(rightIntersects)) > 0:
         nearest = list(nearest_points(rightIntersects, Point(x, y)))[0]
         dist = nearest.distance(Point(x,y))
         cutOffSpeed = min(cutOffSpeed, dist/secondsToLookForward)
     leftIntersects = predicted_car_path.intersection(upcomingWayPointsLeft)
-    if len(leftIntersects.geoms) > 0:
+    if len(getPointListFromLineString(leftIntersects)) > 0:
         nearest = list(nearest_points(leftIntersects, Point(x,y)))[0]
         dist = nearest.distance(Point(x,y))
         cutOffSpeed = min(cutOffSpeed, dist/secondsToLookForward)
@@ -159,7 +182,7 @@ def get_projected_car_path(params:map, time_delta:float = update_interval) -> Li
     y = params['y']
     # generate car's expected future path
     distance_traveled:float = speed * time_delta # m/s * s = m
-    corrected_heading = steering_angle + heading
+    corrected_heading = 0 * steering_angle + heading
     slope = math.tan(corrected_heading*(math.pi/180))
     scale = math.sqrt(math.pow(distance_traveled, 2)/(1 + math.pow(slope, 2)))
     delta_x = scale
@@ -173,7 +196,8 @@ def get_projected_car_path(params:map, time_delta:float = update_interval) -> Li
     predicted_car_path = LineString([car_location, predicted_car_location])
     # print(f"given current position of {car_location}, heading of {heading}, speed: {speed}, and steering: {steering_angle}, the predicted car path is {predicted_car_path}")
     return predicted_car_path
-
+def getPointListFromLineString(path: LineString):
+    return path.coords
 def spliceWithLoop(array: list, start: int, stop: int) -> list:
     # print(f"Indexing start: {start}, stop: {stop}, from: {list}")
     arrayLen = len(array)
@@ -189,7 +213,6 @@ def spliceWithLoop(array: list, start: int, stop: int) -> list:
             stop = stop - arrayLen
         result = result + array[:stop]
         return result 
-
 def center_line_reward(params):
     '''
     Example of rewarding the agent to follow center line
