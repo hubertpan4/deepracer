@@ -26,6 +26,7 @@ def reward_function(params):
         - learning rate 0.0003
         - number of exp eps: 10
         - number of epochs: 10
+    for more info see: https://github.com/hubertpan4/deepracer/tree/master
     """
     log_route_info(params)
     return attempt_race_line_reward(params)
@@ -127,7 +128,7 @@ def reward_speed_depending_on_upcoming(params: map) -> float:
     rightIntersects = predicted_car_path.intersection(upcomingWayPointsRight)
     if len(getPointListFromLineString(rightIntersects)) > 0:
         nearest = list(nearest_points(rightIntersects, Point(x, y)))[0]
-        dist = curLoc.distance(nearest)
+        dist = curLoc.distance(nearest) # consider increasing speed cap
         cutOffSpeed = min(cutOffSpeed, dist/secondsToLookForward)
     leftIntersects = predicted_car_path.intersection(upcomingWayPointsLeft)
     if len(getPointListFromLineString(leftIntersects)) > 0:
@@ -135,7 +136,7 @@ def reward_speed_depending_on_upcoming(params: map) -> float:
         dist = curLoc.distance(nearest)
         cutOffSpeed = min(cutOffSpeed, dist/secondsToLookForward)
     if speed < cutOffSpeed:
-        return speed/5.0
+        return speed/4.0
     else:
         return 1e-3
 def log_route_info(params:map):
