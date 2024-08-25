@@ -62,7 +62,7 @@ def attempt_race_line_reward(params):
         return -10*1.1
     elif will_car_run_off_road_before_next_update(params):
         # print(f"Car is projected to run off track")
-        return -10*1.1
+        return -5*1.1
     else:
         reward:float = 0.0
         reward = reward + orientation_reward(params)
@@ -118,6 +118,7 @@ def reward_speed_depending_on_upcoming(params: map) -> float:
     x = params['x']
     y = params['y']
     cutOffSpeed = 200.0
+    curLoc = Point(x, y)
     # generate future route
     secondsToLookForward:float = 1.0
     predicted_car_path = get_projected_car_path(params, secondsToLookForward)
@@ -126,12 +127,12 @@ def reward_speed_depending_on_upcoming(params: map) -> float:
     rightIntersects = predicted_car_path.intersection(upcomingWayPointsRight)
     if len(getPointListFromLineString(rightIntersects)) > 0:
         nearest = list(nearest_points(rightIntersects, Point(x, y)))[0]
-        dist = nearest.distance(Point(x,y))
+        dist = curLoc.distance(nearest)
         cutOffSpeed = min(cutOffSpeed, dist/secondsToLookForward)
     leftIntersects = predicted_car_path.intersection(upcomingWayPointsLeft)
     if len(getPointListFromLineString(leftIntersects)) > 0:
         nearest = list(nearest_points(leftIntersects, Point(x,y)))[0]
-        dist = nearest.distance(Point(x,y))
+        dist = curLoc.distance(nearest)
         cutOffSpeed = min(cutOffSpeed, dist/secondsToLookForward)
     if speed < cutOffSpeed:
         return speed/5.0
