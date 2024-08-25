@@ -15,7 +15,7 @@ def reward_function(params):
      - track: re:Invent 2018 Counterclockwise
      - sensor: Camera
      - Action space type: continuous
-     - action space speed: 0 to 2 m/s
+     - action space speed: 0 to 4 m/s
      - steering angle -30 to 30 degrees
      - Learning algo: ppo
      - hyperparams
@@ -183,7 +183,7 @@ def get_projected_car_path(params:map, time_delta:float = update_interval) -> Li
     y = params['y']
     # generate car's expected future path
     distance_traveled:float = speed * time_delta # m/s * s = m
-    corrected_heading = 0 * steering_angle + heading
+    corrected_heading = -0.1 * steering_angle + heading
     slope = math.tan(corrected_heading*(math.pi/180))
     scale = math.sqrt(math.pow(distance_traveled, 2)/(1 + math.pow(slope, 2)))
     delta_x = scale
