@@ -51,7 +51,7 @@ def attempt_race_line_reward(params):
             - low amount of steer
                 - should this be relative to current road curvature?
             - [x] speed
-            - [ ] movement in direction of goal.
+            - [x] movement in direction of goal.
     """
     log_current_status(params)
     allWheelsOnTrack:bool = params["all_wheels_on_track"]
@@ -59,10 +59,10 @@ def attempt_race_line_reward(params):
     is_crashed:bool = params["is_crashed"]
     if(not allWheelsOnTrack or isOffTrack or is_crashed):
         # print(f"Car crashed or ran off track")
-        return -10*1.1
+        return -1*1.1
     elif will_car_run_off_road_before_next_update(params):
         # print(f"Car is projected to run off track")
-        return -10*1.1
+        return -1.1
     else:
         reward:float = 0.0
         reward = reward + orientation_reward(params)
@@ -182,7 +182,7 @@ def get_projected_car_path(params:map, time_delta:float = update_interval) -> Li
     y = params['y']
     # generate car's expected future path
     distance_traveled:float = speed * time_delta # m/s * s = m
-    corrected_heading = 0 * steering_angle + heading
+    corrected_heading = steering_angle + heading
     slope = math.tan(corrected_heading*(math.pi/180))
     scale = math.sqrt(math.pow(distance_traveled, 2)/(1 + math.pow(slope, 2)))
     delta_x = scale
@@ -196,7 +196,7 @@ def get_projected_car_path(params:map, time_delta:float = update_interval) -> Li
     predicted_car_path = LineString([car_location, predicted_car_location])
     # print(f"given current position of {car_location}, heading of {heading}, speed: {speed}, and steering: {steering_angle}, the predicted car path is {predicted_car_path}")
     return predicted_car_path
-def getPointListFromLineString(path: LineString):
+def getPointListFromLineString(path):
     return path.coords
 def spliceWithLoop(array: list, start: int, stop: int) -> list:
     # print(f"Indexing start: {start}, stop: {stop}, from: {list}")
