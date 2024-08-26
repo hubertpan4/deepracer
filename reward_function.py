@@ -15,7 +15,7 @@ def reward_function(params):
      - track: re:Invent 2018 Counterclockwise
      - sensor: Camera
      - Action space type: continuous
-     - action space speed: 0 to 4 m/s
+     - action space speed: 0.2 to 2.5 m/s
      - steering angle -30 to 30 degrees
      - Learning algo: ppo
      - hyperparams
@@ -60,19 +60,46 @@ def attempt_race_line_reward(params):
     is_crashed:bool = params["is_crashed"]
     if(not allWheelsOnTrack or isOffTrack or is_crashed):
         # print(f"Car crashed or ran off track")
-        return -10*1.1
+        return 1e-3
     elif will_car_run_off_road_before_next_update(params):
         # print(f"Car is projected to run off track")
-        return -5*1.1
+        return 1e-3
     else:
         reward:float = 0.0
-        reward = reward + orientation_reward(params)
-        reward = reward + reward_speed_depending_on_upcoming(params)/10
-        reward = reward + location_reward(params)
-        return reward 
+        reward = reward + orientation_reward(params) * 0.33333
+        reward = reward + reward_speed_depending_on_upcoming(params) * 0.33333
+        reward = reward + car_flow_score(params) * 0.33333
+        return float(reward) 
+def car_flow_score(params:map) -> float:
+    """
+    Returns scores ranging from 0 to 1
+    """
+    x = params['x']
+    y = params['y']
+    scale = 1.0
+    curLoc = Point(x, y)
+    maxSpeed = 4.0
+    # generate future route
+    secondsToLookForward:float = 1.0
+    scaledDist = 1.0
+    predicted_car_path = get_projected_car_path(params, secondsToLookForward)
+    upcomingTrack = get_expected_future_waypoint_advancement(params, secondsToLookForward)
+    upcomingWayPointsLeft, upcomingCenterLine, upcomingWayPointsRight = get_track_section(params, upcomingTrack + 1, 0)
+    rightIntersects = predicted_car_path.intersection(upcomingWayPointsRight)
+    if len(getPointListFromLineString(rightIntersects)) > 0:
+        nearest = list(nearest_points(rightIntersects, Point(x, y)))[0]
+        dist = curLoc.distance(nearest) # consider increasing speed cap
+        scaledDist = min(1.0, dist/(maxSpeed*secondsToLookForward))
+    leftIntersects = predicted_car_path.intersection(upcomingWayPointsLeft)
+    if len(getPointListFromLineString(leftIntersects)) > 0:
+        nearest = list(nearest_points(leftIntersects, Point(x,y)))[0]
+        dist = curLoc.distance(nearest)
+        scaledDist = min(1.0, dist/(maxSpeed*secondsToLookForward))
+    return float(scaledDist)
 def orientation_reward(params:map) -> float:
     """
     returns a higher score the closer the car is aligned with the track
+    Uses dot products so the angle measure is differentiable which makes it more compatible with gradient descent.
     """
     score = 0.0
     delta = 2 * update_interval
@@ -119,6 +146,7 @@ def reward_speed_depending_on_upcoming(params: map) -> float:
     x = params['x']
     y = params['y']
     cutOffSpeed = 200.0
+    scale = 1.1
     curLoc = Point(x, y)
     # generate future route
     secondsToLookForward:float = 1.0
@@ -129,12 +157,12 @@ def reward_speed_depending_on_upcoming(params: map) -> float:
     if len(getPointListFromLineString(rightIntersects)) > 0:
         nearest = list(nearest_points(rightIntersects, Point(x, y)))[0]
         dist = curLoc.distance(nearest) # consider increasing speed cap
-        cutOffSpeed = min(cutOffSpeed, dist/secondsToLookForward)
+        cutOffSpeed = min(cutOffSpeed, scale * dist/secondsToLookForward)
     leftIntersects = predicted_car_path.intersection(upcomingWayPointsLeft)
     if len(getPointListFromLineString(leftIntersects)) > 0:
         nearest = list(nearest_points(leftIntersects, Point(x,y)))[0]
         dist = curLoc.distance(nearest)
-        cutOffSpeed = min(cutOffSpeed, dist/secondsToLookForward)
+        cutOffSpeed = min(cutOffSpeed, scale * dist/secondsToLookForward)
     if speed < cutOffSpeed:
         return speed/4.0
     else:
@@ -184,7 +212,7 @@ def get_projected_car_path(params:map, time_delta:float = update_interval) -> Li
     y = params['y']
     # generate car's expected future path
     distance_traveled:float = speed * time_delta # m/s * s = m
-    corrected_heading = -0.1 * steering_angle + heading
+    corrected_heading = 0.2 * steering_angle + heading
     slope = math.tan(corrected_heading*(math.pi/180))
     scale = math.sqrt(math.pow(distance_traveled, 2)/(1 + math.pow(slope, 2)))
     delta_x = scale
