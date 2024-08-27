@@ -60,15 +60,16 @@ def attempt_race_line_reward(params):
     is_crashed:bool = params["is_crashed"]
     if(not allWheelsOnTrack or isOffTrack or is_crashed):
         # print(f"Car crashed or ran off track")
-        return 1e-3
+        return float(-1*1.1*0)
     elif will_car_run_off_road_before_next_update(params):
         # print(f"Car is projected to run off track")
-        return 1e-3
+        return float(-1*1.1*0)
     else:
-        reward:float = 0.0
-        reward = reward + orientation_reward(params) * 0.33333
-        reward = reward + reward_speed_depending_on_upcoming(params) * 0.33333
-        reward = reward + car_flow_score(params) * 0.33333
+        reward:float = 1.0
+        reward = reward + orientation_reward(params) * 0.8
+        reward = reward + reward_speed_depending_on_upcoming(params) * 0
+        reward = reward + reward_speed(params) * 0.15
+        reward = reward + car_flow_score(params) * 0.05
         return float(reward) 
 def car_flow_score(params:map) -> float:
     """
@@ -78,23 +79,23 @@ def car_flow_score(params:map) -> float:
     y = params['y']
     scale = 1.0
     curLoc = Point(x, y)
-    maxSpeed = 4.0
+    speed:float = params["speed"]
     # generate future route
     secondsToLookForward:float = 1.0
     scaledDist = 1.0
     predicted_car_path = get_projected_car_path(params, secondsToLookForward)
     upcomingTrack = get_expected_future_waypoint_advancement(params, secondsToLookForward)
-    upcomingWayPointsLeft, upcomingCenterLine, upcomingWayPointsRight = get_track_section(params, upcomingTrack + 1, 0)
+    upcomingWayPointsLeft, upcomingCenterLine, upcomingWayPointsRight = get_track_section(params, upcomingTrack, 0)
     rightIntersects = predicted_car_path.intersection(upcomingWayPointsRight)
     if len(getPointListFromLineString(rightIntersects)) > 0:
         nearest = list(nearest_points(rightIntersects, Point(x, y)))[0]
         dist = curLoc.distance(nearest) # consider increasing speed cap
-        scaledDist = min(1.0, dist/(maxSpeed*secondsToLookForward))
+        scaledDist = min(1.0, dist/(speed*secondsToLookForward))
     leftIntersects = predicted_car_path.intersection(upcomingWayPointsLeft)
     if len(getPointListFromLineString(leftIntersects)) > 0:
         nearest = list(nearest_points(leftIntersects, Point(x,y)))[0]
         dist = curLoc.distance(nearest)
-        scaledDist = min(1.0, dist/(maxSpeed*secondsToLookForward))
+        scaledDist = min(1.0, dist/(speed*secondsToLookForward))
     return float(scaledDist)
 def orientation_reward(params:map) -> float:
     """
@@ -127,7 +128,7 @@ def location_reward(params:map) -> float:
 def reward_speed(params:map) -> float:
     reward:float = 0.0
     speed:float = params["speed"] # 0.0 to 5.0 m/s
-    reward = reward + speed/5.0
+    reward = reward + speed/4.0
     return reward 
 def will_car_run_off_road_before_next_update(params:map) -> bool:
     # raw inputs
